@@ -19,6 +19,8 @@
         #king-box { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85%; max-width: 400px; background: rgba(44, 62, 80, 0.95); border: 4px solid #fff; padding: 12px; display: none; text-align: left; box-shadow: 0px 0px 15px #000; z-index: 100; box-sizing: border-box; }
         #king-text { font-size: 13px; line-height: 1.4; color: #fff; margin-bottom: 10px; }
         #king-next-btn { display: block; width: 100%; background: #2ecc71; color: #fff; border: 2px solid #fff; padding: 10px 0; font-family: 'DotGothic16', sans-serif; font-size: 15px; cursor: pointer; box-shadow: 2px 2px #000; text-align: center; -webkit-appearance: none; }
+        #judge-flash { position: absolute; top: 10px; right: 10px; font-size: 24px; font-weight: bold; text-shadow: 2px 2px #000; display: none; animation: flash 0.5s ease; }
+        @keyframes flash { 0% { transform: scale(0.5); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); } }
     </style>
 </head>
 <body>
@@ -33,6 +35,7 @@
 
     <div id="canvas-container">
         <canvas id="gameCanvas" width="512" height="384"></canvas>
+        <div id="judge-flash"></div>
         <div id="king-box">
             <div style="color: #ff7675; font-weight: bold; font-size: 14px; margin-bottom: 5px;">👑 オオサマの おことば</div>
             <div id="king-text"></div>
@@ -49,7 +52,7 @@ const ctx = canvas.getContext('2d');
 
 let currentStage = 1, turnsLeft = 5, isCharging = false, power = 0;
 const maxPower = 20;
-let soySauce = 100, isStageEnd = false, distance = 0;
+let soySauce = 100, isStageEnd = false, distance = 0, baseDistance = 0;
 
 let bottle = { x: 80, y: 250, vx: 0, vy: 0, angle: 0, vAngle: 0, width: 24, height: 64, isGrounded: false };
 let cameraX = 0, stars = [];
@@ -76,6 +79,12 @@ function generateStageData(stageNum) {
 }
 generateStageData(1);
 
+function showFlash(text, color) {
+    let el = document.getElementById('judge-flash');
+    el.innerText = text; el.style.color = color; el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 1000);
+}
+
 function gameLoop() { updatePhysics(); drawGame(); requestAnimationFrame(gameLoop); }
 
 function updatePhysics() {
@@ -86,6 +95,8 @@ function updatePhysics() {
     }
     if (!bottle.isGrounded) {
         bottle.vy += 0.25; bottle.x += bottle.vx; bottle.y += bottle.vy; bottle.angle += bottle.vAngle;
+        baseDistance = Math.max(0, Math.floor((bottle.x - 80) / 8));
+        distance = baseDistance;
     } else {
         bottle.vx *= 0.85; bottle.vAngle = 0; bottle.x += bottle.vx;
     }
@@ -93,23 +104,43 @@ function updatePhysics() {
     let targetCamX = bottle.x - 150;
     if (targetCamX < 0) targetCamX = 0;
     cameraX += (targetCamX - cameraX) * 0.1;
-    distance = Math.max(0, Math.floor((bottle.x - 80) / 8));
     document.getElementById('distance').innerText = distance;
 
     if (!bottle.isGrounded) {
-        let onPlatform = false;
         for (let p of platforms) {
             if (bottle.x + bottle.width/2 > p.x && bottle.x - bottle.width/2 < p.x + p.w) {
                 let deg = (((bottle.angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) * 180 / Math.PI;
                 let targetAngle = 0, finalHeight = bottle.height;
-                if (deg >= 45 && deg < 135) { targetAngle = Math.PI / 2; finalHeight = bottle.width; }
-                else if (deg >= 135 && deg < 225) { targetAngle = Math.PI; finalHeight = bottle.height; }
-                else if (deg >= 225 && deg < 315) { targetAngle = (Math.PI * 3) / 2; finalHeight = bottle.width; }
+                let postureBonus = 1.0; 
+
+                // ★新しい姿勢判定＆醤油減少システム
+                if (deg >= 45 && deg < 135) { 
+                    targetAngle = Math.PI / 2; finalHeight = bottle.width; // 横向き
+                    postureBonus = 0.5; // 飛距離半分
+                    soySauce = Math.max(0, soySauce - 50); // 醤油を半分減らす
+                    showFlash("ヨコムキ（0.5倍＆醤油半分減！）", "#ff7675");
+                } else if (deg >= 135 && deg < 225) { 
+                    targetAngle = Math.PI; finalHeight = bottle.height; // 逆さま
+                    postureBonus = 2.0; // 飛距離2倍！
+                    soySauce = 0; // 醤油が全部消える！
+                    showFlash("サカサマ（2倍ボーナス＆醤油ゼロ！）", "#55efc4");
+                } else if (deg >= 225 && deg < 315) { 
+                    targetAngle = (Math.PI * 3) / 2; finalHeight = bottle.width; // 横向き
+                    postureBonus = 0.5; // 飛距離半分
+                    soySauce = Math.max(0, soySauce - 50); // 醤油を半分減らす
+                    showFlash("ヨコムキ（0.5倍＆醤油半分減！）", "#ff7675");
+                } else { 
+                    targetAngle = 0; finalHeight = bottle.height; // 直立
+                    postureBonus = 1.0; // 飛距離通常
+                    showFlash("直立成功（通常）", "#ffeaa7");
+                }
                 
                 let currentBottomY = bottle.y + finalHeight / 2;
                 if (currentBottomY >= p.y && currentBottomY - bottle.vy <= p.y + 24) {
-                    bottle.isGrounded = true; bottle.vy = 0; bottle.angle = targetAngle; bottle.y = p.y - finalHeight / 2; onPlatform = true;
-                    if (targetAngle !== 0 && soySauce > 0) { soySauce = Math.max(0, soySauce - 1.5); document.getElementById('sauce-bar').style.width = soySauce + '%'; }
+                    bottle.isGrounded = true; bottle.vy = 0; bottle.angle = targetAngle; bottle.y = p.y - finalHeight / 2;
+                    
+                    distance = Math.floor(baseDistance * postureBonus);
+                    document.getElementById('sauce-bar').style.width = soySauce + '%'; 
                     break;
                 }
             }
@@ -132,9 +163,9 @@ function updatePhysics() {
         isStageEnd = true;
         document.getElementById("king-box").style.display = "block";
         let txt = document.getElementById("king-text"), btn = document.getElementById("king-next-btn");
-        if (currentStage === 1) { txt.innerText = `「フーム、記録は 【 ${distance}m 】 カ。どんな格好でも止まればヨシ！悪くナイド。でも、3ステージ全部クリアしたら、ウツクシイ【豪華報酬】をアゲル。がんばりなさイ。」`; btn.innerText = "ツギのステージ2ヘ ＞"; }
-        else if (currentStage === 2) { txt.innerText = `「ホウ、【 ${distance}m 】まで飛ばしたのネ。逆さに立ったりして面白いフリップじゃナイド。オオサマ、ちょっと見直したヨ。さあ、次が最後のシレンだネ。」`; btn.innerText = "ツギのステージ3ヘ ＞"; }
-        else if (currentStage === 3) { txt.innerText = `「オオウ！最終記録は 【 ${distance}m 】！カンペキだネ。宇宙一の醤油フリッパーだヨ。約束通り、豪華報酬【オオサマのパンツ（イチゴ柄）】をプレゼントしちゃうネ！」`; btn.innerText = "最初からあそぶ ＞"; }
+        if (currentStage === 1) { txt.innerText = `「フーム、最終スコアは 【 ${distance}m 】 ネ。逆さ着地を狙って一発逆転を狙いなさイ。」`; btn.innerText = "ツギのステージ2ヘ ＞"; }
+        else if (currentStage === 2) { txt.innerText = `「ホウ、【 ${distance}m 】カ。横向きで醤油が漏れるのはもったいナイド。さあ、次が最後のシレンだネ。」`; btn.innerText = "ツギのステージ3ヘ ＞"; }
+        else if (currentStage === 3) { txt.innerText = `「オオウ！最終結果は 【 ${distance}m 】！完璧にボトルをコントロールしたネ！【オオサマのパンツ】を授与するヨ！」`; btn.innerText = "最初からあそぶ ＞"; }
     }
 }
 
@@ -166,15 +197,14 @@ function fire(e) {
     turnsLeft--; 
     document.getElementById('turns').innerText = turnsLeft; 
 
-    // ★さらに調整：満タン（100%）のときはいつもの半分の力（0.55倍）しか出ない超重量モードに！
-    // 醤油が0%に近づくほど、最大「1.7倍」まで爆発的な軽さになります。
     let weightBoost = 1.7 - (soySauce / 100) * 1.15; 
 
     bottle.vx = power * 0.48 * weightBoost; 
     bottle.vy = -power * 0.78 * weightBoost; 
-    bottle.vAngle = (soySauce === 0) ? 0.42 : 0.24; 
+    bottle.vAngle = (soySauce === 0) ? 0.40 : 0.22; 
     bottle.isGrounded = false; 
 }
+// リセット時は醤油を満タンに戻さない（引き継ぐ）仕様にして、着地ペナルティが次に響くようにしました
 function resetBottlePosition() { bottle.x = 80; bottle.y = 250; bottle.vx = 0; bottle.vy = 0; bottle.angle = 0; bottle.vAngle = 0; bottle.isGrounded = false; }
 
 window.addEventListener('keydown', (e) => { if (e.key === ' ' || e.code === 'Space') startCharge(); });
