@@ -19,7 +19,7 @@
         #king-box { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85%; max-width: 400px; background: rgba(44, 62, 80, 0.95); border: 4px solid #fff; padding: 12px; display: none; text-align: left; box-shadow: 0px 0px 15px #000; z-index: 100; box-sizing: border-box; }
         #king-text { font-size: 13px; line-height: 1.4; color: #fff; margin-bottom: 10px; }
         #king-next-btn { display: block; width: 100%; background: #2ecc71; color: #fff; border: 2px solid #fff; padding: 10px 0; font-family: 'DotGothic16', sans-serif; font-size: 15px; cursor: pointer; box-shadow: 2px 2px #000; text-align: center; -webkit-appearance: none; }
-        #judge-flash { position: absolute; top: 10px; right: 10px; font-size: 24px; font-weight: bold; text-shadow: 2px 2px #000; display: none; animation: flash 0.5s ease; }
+        #judge-flash { position: absolute; top: 10px; right: 10px; font-size: 20px; font-weight: bold; text-shadow: 2px 2px #000; display: none; animation: flash 0.5s ease; z-index: 10; }
         @keyframes flash { 0% { transform: scale(0.5); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); } }
     </style>
 </head>
@@ -113,25 +113,25 @@ function updatePhysics() {
                 let targetAngle = 0, finalHeight = bottle.height;
                 let postureBonus = 1.0; 
 
-                // ★新しい姿勢判定＆醤油減少システム
-                if (deg >= 45 && deg < 135) { 
-                    targetAngle = Math.PI / 2; finalHeight = bottle.width; // 横向き
-                    postureBonus = 0.5; // 飛距離半分
-                    soySauce = Math.max(0, soySauce - 50); // 醤油を半分減らす
-                    showFlash("ヨコムキ（0.5倍＆醤油半分減！）", "#ff7675");
-                } else if (deg >= 135 && deg < 225) { 
-                    targetAngle = Math.PI; finalHeight = bottle.height; // 逆さま
-                    postureBonus = 2.0; // 飛距離2倍！
-                    soySauce = 0; // 醤油が全部消える！
-                    showFlash("サカサマ（2倍ボーナス＆醤油ゼロ！）", "#55efc4");
-                } else if (deg >= 225 && deg < 315) { 
-                    targetAngle = (Math.PI * 3) / 2; finalHeight = bottle.width; // 横向き
-                    postureBonus = 0.5; // 飛距離半分
-                    soySauce = Math.max(0, soySauce - 50); // 醤油を半分減らす
-                    showFlash("ヨコムキ（0.5倍＆醤油半分減！）", "#ff7675");
+                // ★判定範囲を広げて確実に判定されるようにしました
+                if (deg >= 135 && deg < 225) { 
+                    // 逆さま（頭が下の状態）
+                    targetAngle = Math.PI; finalHeight = bottle.height; 
+                    postureBonus = 2.0; 
+                    soySauce = 0; // 醤油ゼロ
+                    showFlash("サカサマ（2倍＆醤油ゼロ！）", "#55efc4");
+                } else if ((deg >= 45 && deg < 135) || (deg >= 225 && deg < 315)) { 
+                    // 横向き
+                    targetAngle = (deg >= 45 && deg < 135) ? Math.PI / 2 : (Math.PI * 3) / 2;
+                    finalHeight = bottle.width; 
+                    postureBonus = 0.5; 
+                    soySauce = Math.max(0, soySauce - 50); // 醤油半分
+                    showFlash("ヨコムキ（0.5倍＆醤油半分）", "#ff7675");
                 } else { 
-                    targetAngle = 0; finalHeight = bottle.height; // 直立
-                    postureBonus = 1.0; // 飛距離通常
+                    // 直立成功（通常）
+                    targetAngle = 0; finalHeight = bottle.height; 
+                    postureBonus = 1.0; 
+                    // 醤油は減らさない（そのまま維持）
                     showFlash("直立成功（通常）", "#ffeaa7");
                 }
                 
@@ -204,8 +204,7 @@ function fire(e) {
     bottle.vAngle = (soySauce === 0) ? 0.40 : 0.22; 
     bottle.isGrounded = false; 
 }
-// リセット時は醤油を満タンに戻さない（引き継ぐ）仕様にして、着地ペナルティが次に響くようにしました
-function resetBottlePosition() { bottle.x = 80; bottle.y = 250; bottle.vx = 0; bottle.vy = 0; bottle.angle = 0; bottle.vAngle = 0; bottle.isGrounded = false; }
+function resetBottlePosition() { bottle.x = 80; bottle.y = 250; bottle.vx = 0; vy = 0; bottle.angle = 0; bottle.vAngle = 0; bottle.isGrounded = false; }
 
 window.addEventListener('keydown', (e) => { if (e.key === ' ' || e.code === 'Space') startCharge(); });
 window.addEventListener('keyup', (e) => { if (e.key === ' ' || e.code === 'Space') fire(); });
