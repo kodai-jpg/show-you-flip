@@ -158,7 +158,23 @@ function drawGame() {
 }
 
 function startCharge(e) { if (e) e.preventDefault(); if (turnsLeft <= 0 || isCharging || !bottle.isGrounded || isStageEnd) return; isCharging = true; power = 0; document.getElementById('power-bar-container').style.display = 'block'; }
-function fire(e) { if (e) e.preventDefault(); if (!isCharging) return; isCharging = false; document.getElementById('power-bar-container').style.display = 'none'; turnsLeft--; document.getElementById('turns').innerText = turnsLeft; let weightBoost = 1.5 - (soySauce / 100) * 0.5; bottle.vx = power * 0.52 * weightBoost; bottle.vy = -power * 0.82 * weightBoost; bottle.vAngle = (soySauce === 0) ? 0.38 : 0.24; bottle.isGrounded = false; }
+function fire(e) { 
+    if (e) e.preventDefault(); 
+    if (!isCharging) return; 
+    isCharging = false; 
+    document.getElementById('power-bar-container').style.display = 'none'; 
+    turnsLeft--; 
+    document.getElementById('turns').innerText = turnsLeft; 
+
+    // ★さらに調整：満タン（100%）のときはいつもの半分の力（0.55倍）しか出ない超重量モードに！
+    // 醤油が0%に近づくほど、最大「1.7倍」まで爆発的な軽さになります。
+    let weightBoost = 1.7 - (soySauce / 100) * 1.15; 
+
+    bottle.vx = power * 0.48 * weightBoost; 
+    bottle.vy = -power * 0.78 * weightBoost; 
+    bottle.vAngle = (soySauce === 0) ? 0.42 : 0.24; 
+    bottle.isGrounded = false; 
+}
 function resetBottlePosition() { bottle.x = 80; bottle.y = 250; bottle.vx = 0; bottle.vy = 0; bottle.angle = 0; bottle.vAngle = 0; bottle.isGrounded = false; }
 
 window.addEventListener('keydown', (e) => { if (e.key === ' ' || e.code === 'Space') startCharge(); });
